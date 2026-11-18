@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dev Daily Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: one working surface. Header + tabs on top, a single panel below.
+   Manager sees Today / Board / Timeline / Week. Developer sees My Day / My Tasks / History. */
+:root{
+  --bg:#f4f6f6; --surface:#ffffff; --surface2:#eef2f2; --line:#d9e0e0; --ink:#17201f; --muted:#5b6968;
+  --accent:#0f6b63; --accent-ink:#ffffff; --accent-soft:#dcefec;
+  --todo:#6b7776; --doing:#2563c9; --review:#7a4fc7; --done:#1f8a4c;
+  --warn:#b4540a; --warn-soft:#fbe9d9; --bad:#b3261e; --bad-soft:#fbe3e1; --good-soft:#dff3e6;
+  --f-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-head:'Space Grotesk','Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#172120; --surface2:#1e2b2a; --line:#2c3d3b; --ink:#e6eeed; --muted:#96a7a5;
+  --accent:#4fc2b6; --accent-ink:#06211e; --accent-soft:#17403c;
+  --todo:#97a5a4; --doing:#6ea2f5; --review:#b093ee; --done:#58c785;
+  --warn:#f0a35e; --warn-soft:#3b2a17; --bad:#ff8c84; --bad-soft:#3d1e1c; --good-soft:#163a27; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#172120; --surface2:#1e2b2a; --line:#2c3d3b; --ink:#e6eeed; --muted:#96a7a5;
+  --accent:#4fc2b6; --accent-ink:#06211e; --accent-soft:#17403c;
+  --todo:#97a5a4; --doing:#6ea2f5; --review:#b093ee; --done:#58c785;
+  --warn:#f0a35e; --warn-soft:#3b2a17; --bad:#ff8c84; --bad-soft:#3d1e1c; --good-soft:#163a27; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-head);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:22px} h2{font-size:17px} h3{font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-bottom:16px}
+.sub{color:var(--muted);font-size:13px}
+.who{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 4px}
+.who img{width:28px;height:28px;border-radius:50%}
+.role{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:600}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;color:var(--muted);font-weight:500}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.between{justify-content:space-between}
+.grow{flex:1 1 auto}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.stack{display:grid;gap:16px}
+.cols2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+@media(max-width:820px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+label{display:grid;gap:4px;font-weight:500;font-size:13px}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:76px;resize:vertical}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:8px 14px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--bad);color:#fff}
+.btn.sm{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.chip.high{background:var(--bad-soft);color:var(--bad)} .chip.med{background:var(--warn-soft);color:var(--warn)}
+.chip.ok{background:var(--good-soft);color:var(--done)} .chip.late{background:var(--bad-soft);color:var(--bad)}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{background:var(--surface2);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-family:var(--f-head);font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:12px}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start}
+.colh{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:8px;font-size:13px}
+.colh i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.col{background:var(--surface2);border-radius:10px;padding:10px;min-width:0}
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;display:grid;gap:8px;min-width:0}
+.tcard .title{background:none;border:0;padding:0;text-align:left;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.tcard .title:hover{color:var(--accent)}
+.meta{display:flex;gap:6px;flex-wrap:wrap}
+.tcard select{padding:4px 8px;font-size:12px}
+.muted{color:var(--muted)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted)}
+.blocker{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-weight:500;overflow-wrap:anywhere}
+.txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.lab{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin-bottom:2px}
+.tl{display:grid;gap:0}
+.tl .day{font-family:var(--f-head);font-weight:600;margin:16px 0 6px}
+.ev{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.ev time{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;padding-top:2px}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.tbl th{font-size:12px;color:var(--muted);font-weight:600}
+.scroll{overflow-x:auto}
+#modal .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px;z-index:50}
+#modal .box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;width:min(520px,100%);max-height:90vh;overflow:auto;display:grid;gap:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.g2{grid-template-columns:1fr}}
+#toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;z-index:60}
+.note{background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:10px 12px}
+.note.warn{background:var(--warn-soft)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app"><div class="empty">Loading your tracker…</div></div></div>
+<div id="modal"></div>
+<div id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+'use strict';
+const STAT=[['todo','To do'],['doing','In progress'],['review','Review'],['done','Done']];
+const STAT_LABEL=Object.fromEntries(STAT);
+const PRI={high:'High',med:'Medium',low:'Low'};
+const S={me:null,myId:null,mgr:false,canWrite:true,tab:null,devs:{},labels:{},names:{},colors:{},avatars:{},
+  day:null,weekStart:null,filter:'all',modal:null,pending:false,err:'',loaded:false,db:null,user:null,gate:''};
+const $=s=>document.querySelector(s);
+const app=$('#app'),modalEl=$('#modal');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayStr=()=>ymd(new Date());
+const parseYmd=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const mondayOf=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const fmtDay=s=>parseYmd(s).toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'});
+const fmtTime=ms=>new Date(ms).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+const uid8=()=>Math.random().toString(36).slice(2,10);
+const doneOn=(t,day)=>t.doneAt&&ymd(new Date(t.doneAt))===day;
+const isOverdue=t=>t.status!=='done'&&t.due&&t.due<todayStr();
+S.day=todayStr(); S.weekStart=ymd(mondayOf(new Date()));
+const REAL={};let REALLAB={};S.devs=REAL;S.demo=false;S.demoRole='mgr';S.isOwner=false;S.real=null;S.emails={};
+
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+let chain=Promise.resolve();
+function queue(fn){chain=chain.then(fn).catch(e=>toast('Could not save: '+((e&&(e.message||e.code))||'unknown error')));return chain}
+
+function label(uid){
+  if(S.labels[uid])return S.labels[uid];
+  if(S.names[uid])return S.names[uid];
+  const i=devIds().indexOf(uid);return 'Developer '+(i+1);
+}
+function devIds(){
+  if(!S.mgr)return S.myId?[S.myId]:[];
+  return Object.keys(S.devs).sort((a,b)=>(S.labels[a]||S.names[a]||a).localeCompare(S.labels[b]||S.names[b]||b));
+}
+const dotFor=uid=>`<span class="dot" style="background:${esc(S.colors[uid]||'var(--accent)')}"></span>`;
+const allTasks=()=>devIds().flatMap(u=>(S.devs[u]?.tasks||[]).map(t=>({...t,uid:u})));
+const visibleIds=()=>S.filter==='all'||!S.devs[S.filter]?devIds():[S.filter];
+
+/* ---------- data (Supabase) ---------- */
+const CFG=window.TRACKER_CONFIG||{};
+let sb=null;
+const PALETTE=['#2563c9','#c26a0a','#7a4fc7','#1f8a4c','#b3261e'];
+const ms=v=>v?Date.parse(v):null;
+const iso=v=>v?new Date(v).toISOString():null;
+const taskFrom=r=>({id:r.id,title:r.title,notes:r.notes||'',priority:r.priority,estimate:Number(r.estimate)||0,due:r.due||'',status:r.status,createdAt:ms(r.created_at),createdBy:r.created_by,updatedAt:ms(r.updated_at),doneAt:ms(r.done_at),history:Array.isArray(r.history)?r.history:[]});
+const logFrom=r=>({id:r.id,date:r.log_date,done:r.done_text||'',today:r.plan_text||'',blockers:r.blockers_text||'',hours:r.hours==null?null:Number(r.hours),createdAt:ms(r.created_at),updatedAt:ms(r.updated_at)});
+const taskRow=(uid,t)=>({id:t.id,owner:uid,title:t.title,notes:t.notes||'',priority:t.priority,estimate:t.estimate||0,due:t.due||null,status:t.status,created_by:t.createdBy||S.myId,created_at:iso(t.createdAt),updated_at:iso(t.updatedAt),done_at:iso(t.doneAt),history:t.history});
+
+function persist(promise){
+  return Promise.resolve(promise).then(res=>{if(res&&res.error){toast('Could not save: '+res.error.message);loadAll()}},e=>{toast('Could not save: '+((e&&e.message)||'network error'));loadAll()});
+}
+let loading=false;
+async function loadAll(){
+  if(S.demo||!sb||loading)return;
+  loading=true;
+  try{
+    const [p,t,l]=await Promise.all([
+      sb.from('profiles').select('id,name,email,role'),
+      sb.from('tasks').select('*'),
+      sb.from('daily_logs').select('*').order('log_date',{ascending:false})]);
+    const err=p.error||t.error||l.error;
+    if(err){S.err=err.message||'error';scheduleRender();return}
+    S.err='';
+    const devs=p.data.filter(x=>x.role==='developer');
+    Object.keys(REAL).forEach(id=>{REAL[id].tasks=[];REAL[id].logs=[]});
+    const ids=new Set(devs.map(d=>d.id));if(!S.mgr)ids.add(S.myId);
+    ids.forEach(id=>{if(!REAL[id])REAL[id]={tasks:[],logs:[]}});
+    const lab={};
+    devs.forEach((d,i)=>{lab[d.id]=d.name;S.emails[d.id]=d.email;S.colors[d.id]=PALETTE[i%PALETTE.length]});
+    REALLAB=lab;
+    t.data.forEach(r=>{(REAL[r.owner]||(REAL[r.owner]={tasks:[],logs:[]})).tasks.push(taskFrom(r))});
+    l.data.forEach(r=>{(REAL[r.owner]||(REAL[r.owner]={tasks:[],logs:[]})).logs.push(logFrom(r))});
+    S.loaded=true;
+    if(!S.demo)S.labels=REALLAB;
+    scheduleRender();
+  }finally{loading=false}
+}
+
+function saveTask(uid,t,prev){
+  const now=Date.now();t.updatedAt=now;
+  if(!prev){t.createdAt=now;t.createdBy=S.myId;t.history=[{s:t.status,at:now,by:S.myId,created:true}]}
+  else{
+    t.createdAt=prev.createdAt;t.createdBy=prev.createdBy;t.history=prev.history||[];
+    if(prev.status!==t.status)t.history=[...t.history,{s:t.status,at:now,by:S.myId}];
+  }
+  t.doneAt=t.status==='done'?(prev&&prev.status==='done'?prev.doneAt:now):null;
+  const obj={id:t.id,title:t.title,notes:t.notes||'',priority:t.priority,estimate:t.estimate||0,due:t.due||'',status:t.status,
+    createdAt:t.createdAt,createdBy:t.createdBy,updatedAt:t.updatedAt,doneAt:t.doneAt,history:t.history};
+  const dv=S.devs[uid],i=dv.tasks.findIndex(x=>x.id===t.id);
+  if(i>=0)dv.tasks[i]=obj;else dv.tasks.push(obj);
+  render();
+  if(S.demo)return Promise.resolve();
+  return persist(sb.from('tasks').upsert(taskRow(uid,obj)));
+}
+function setStatus(uid,tid,status){
+  const prev=S.devs[uid].tasks.find(x=>x.id===tid);if(!prev||prev.status===status)return;
+  saveTask(uid,{...prev,status},prev);
+}
+function deleteTask(uid,tid){
+  S.devs[uid].tasks=S.devs[uid].tasks.filter(x=>x.id!==tid);render();
+  if(S.demo)return Promise.resolve();
+  return persist(sb.from('tasks').delete().eq('id',tid));
+}
+
+/* ---------- render control ---------- */
+function scheduleRender(){
+  const a=document.activeElement;
+  if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&app.contains(a)){S.pending=true;return}
+  S.pending=false;render();
+}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(S.pending)scheduleRender()},60));
+
+function render(){
+  if(S.gate){app.innerHTML=S.gate.html||`<div class="empty"><h2>${esc(S.gate.title)}</h2><p>${esc(S.gate.body)}</p></div>`;return}
+  const tabs=S.mgr?[['today','Today'],['board','Board'],['timeline','Timeline'],['week','Week']]:[['day','My Day'],['tasks','My Tasks'],['history','History']];
+  if(!S.tab||!tabs.some(t=>t[0]===S.tab))S.tab=tabs[0][0];
+  const me=S.me||{};
+  const demoDev=S.demo&&!S.mgr;
+  const whoName=demoDev?label(S.myId):(me.name||'You');
+  const whoImg=demoDev?'':(me.avatarUrl||'');
+  let body='';
+  try{
+    body=S.mgr?({today:vToday,board:vBoard,timeline:vTimeline,week:vWeek}[S.tab])():({day:vDay,tasks:vMyTasks,history:vHistory}[S.tab])();
+  }catch(e){body=`<div class="empty">Something went wrong drawing this view.</div>`;console.error(e)}
+  app.innerHTML=`
+  <div class="top">
+    <div><h1>Dev Daily Tracker</h1><div class="sub">${esc(new Date().toLocaleDateString([], {weekday:'long',day:'numeric',month:'long',year:'numeric'}))}</div></div>
+    <div class="row">${S.isOwner&&!S.demo?'<button class="btn ghost sm" data-act="demo">View sample data</button>':''}
+    <div class="who">${whoImg?`<img alt="" src="${esc(whoImg)}">`:`<span class="dot" style="margin-left:10px;background:${esc(S.colors[S.myId]||'var(--accent)')}"></span>`}<span>${esc(whoName)}</span></div>${S.demo?'':'<button class="btn ghost sm" data-act="signout">Sign out</button>'}</div>
+  </div>
+  ${demoBanner()}
+  ${S.err?`<div class="note warn" style="margin-bottom:12px">The database reported "${esc(S.err)}". Some information may be missing or out of date.</div>`:''}
+  <nav class="tabs" role="tablist">${tabs.map(([k,v])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-act="tab" data-k="${k}">${v}</button>`).join('')}</nav>
+  ${body}`;
+}
+
+/* ---------- shared pieces ---------- */
+function taskCard(t,uid,showOwner){
+  const od=isOverdue(t);
+  return `<article class="tcard">
+    <button class="title" data-act="edit" data-uid="${esc(uid)}" data-tid="${esc(t.id)}">${esc(t.title)}</button>
+    <div class="meta">
+      <span class="chip ${t.priority==='high'?'high':t.priority==='med'?'med':''}">${esc(PRI[t.priority]||'Medium')}</span>
+      ${t.estimate?`<span class="chip">${esc(t.estimate)}h est.</span>`:''}
+      ${t.due?`<span class="chip ${od?'late':''}">${od?'Overdue · ':'Due '}${esc(fmtDay(t.due))}</span>`:''}
+      ${showOwner?`<span class="chip">${dotFor(uid)}${esc(label(uid))}</span>`:''}
+    </div>
+    <select aria-label="Status of ${esc(t.title)}" data-act="status" data-uid="${esc(uid)}" data-tid="${esc(t.id)}">${STAT.map(([k,v])=>`<option value="${k}"${t.status===k?' selected':''}>${v}</option>`).join('')}</select>
+  </article>`;
+}
+function boardHtml(items,showOwner){
+  if(!items.length)return `<div class="empty">No tasks yet. Use “Add task” to create the first one.</div>`;
+  return `<div class="board">${STAT.map(([k,v])=>{
+    let list=items.filter(t=>t.status===k);
+    list=k==='done'?list.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)):list.sort((a,b)=>({high:0,med:1,low:2}[a.priority]??1)-({high:0,med:1,low:2}[b.priority]??1)||(a.due||'9').localeCompare(b.due||'9'));
+    const hidden=k==='done'&&list.length>10?list.length-10:0;if(hidden)list=list.slice(0,10);
+    return `<section class="col"><div class="colh"><span><i style="background:var(--${k})"></i>${v}</span><span class="muted">${items.filter(t=>t.status===k).length}</span></div>
+      ${list.map(t=>taskCard(t,t.uid,showOwner)).join('')||'<div class="muted" style="font-size:12px;padding:6px 2px">Nothing here</div>'}
+      ${hidden?`<div class="muted" style="font-size:12px">${hidden} older completed task${hidden>1?'s':''} not shown</div>`:''}</section>`}).join('')}</div>`;
+}
+function statsFor(tasks){
+  const wk=mondayOf(new Date()).getTime();
+  const open=tasks.filter(t=>t.status!=='done');
+  return `<div class="stats">
+   <div class="stat"><b>${open.length}</b><span>Open tasks</span></div>
+   <div class="stat"><b>${tasks.filter(t=>t.status==='doing'||t.status==='review').length}</b><span>In progress / review</span></div>
+   <div class="stat"><b style="${open.some(isOverdue)?'color:var(--bad)':''}">${open.filter(isOverdue).length}</b><span>Overdue</span></div>
+   <div class="stat"><b>${tasks.filter(t=>t.doneAt&&t.doneAt>=wk).length}</b><span>Done this week</span></div></div>`;
+}
+function devFilter(){
+  const ids=devIds();
+  return `<label style="min-width:170px">Developer<select id="flt" data-act="filter"><option value="all">Everyone</option>${ids.map(u=>`<option value="${esc(u)}"${S.filter===u?' selected':''}>${esc(label(u))}</option>`).join('')}</select></label>`;
+}
+const noDevs=()=>`<div class="empty"><h2 style="margin-bottom:6px">No developers have joined yet</h2>Share this page with each developer as a Contributor. They appear here after their first visit.</div>`;
+
+/* ---------- developer views ---------- */
+function myData(){return S.devs[S.myId]||{tasks:[],logs:[]}}
+function vDay(){
+  const d=myData(),t=todayStr(),log=d.logs.find(l=>l.date===t);
+  const prev=d.logs.find(l=>l.date<t);
+  const doing=d.tasks.filter(x=>x.status==='doing'||x.status==='review');
+  return `<div class="cols2">
+   <div class="stack">
+    <section class="panel"><h2>Today's update · ${esc(fmtDay(t))}</h2>
+     ${prev&&prev.today?`<p class="sub" style="margin:6px 0 0">You planned on ${esc(fmtDay(prev.date))}: <span class="txt">${esc(prev.today)}</span></p>`:''}
+     <form id="logForm" class="stack" style="margin-top:14px">
+      <label for="f-done">What I got done since the last update<textarea id="f-done">${esc(log?.done||'')}</textarea></label>
+      <label for="f-today">What I'm doing today<textarea id="f-today">${esc(log?.today||'')}</textarea></label>
+      <label for="f-block">Blockers or things I need<textarea id="f-block" placeholder="Leave empty if nothing is blocking you">${esc(log?.blockers||'')}</textarea></label>
+      <label for="f-hours" style="max-width:180px">Hours worked<input id="f-hours" type="number" min="0" max="24" step="0.5" value="${esc(log?.hours??'')}"></label>
+      <div class="row"><button class="btn" type="submit">${log?'Update today\'s post':'Post update'}</button>
+      <span class="sub">${log?'Last saved '+esc(fmtTime(log.updatedAt)):'Not posted yet today'}</span></div>
+     </form></section>
+   </div>
+   <div class="stack">
+    <section class="panel"><h2 style="margin-bottom:10px">Your numbers</h2>${statsFor(d.tasks)}</section>
+    <section class="panel"><div class="row between" style="margin-bottom:10px"><h2>In progress</h2><button class="btn sm ghost" data-act="new" data-uid="${esc(S.myId)}">Add task</button></div>
+     ${doing.length?doing.map(x=>taskCard(x,S.myId,false)).join(''):'<div class="empty">Nothing in progress. Move a task to “In progress” when you start it.</div>'}</section>
+   </div></div>`;
+}
+function vMyTasks(){
+  const d=myData();
+  return `<div class="row between" style="margin-bottom:14px"><div class="grow">${statsFor(d.tasks)}</div><button class="btn" data-act="new" data-uid="${esc(S.myId)}">Add task</button></div>
+   ${boardHtml(d.tasks.map(t=>({...t,uid:S.myId})),false)}`;
+}
+function vHistory(){
+  const l=myData().logs;
+  if(!l.length)return `<div class="empty">Your past updates will appear here once you post your first one.</div>`;
+  return `<div class="stack">${l.map(logCard).join('')}</div>`;
+}
+function logCard(l){
+  return `<section class="panel"><div class="row between"><h3>${esc(fmtDay(l.date))}</h3><span class="sub">${l.hours?esc(l.hours)+' h · ':''}posted ${esc(fmtTime(l.updatedAt))}</span></div>
+   <div class="stack" style="margin-top:10px">
+   ${l.done?`<div><div class="lab">Done</div><div class="txt">${esc(l.done)}</div></div>`:''}
+   ${l.today?`<div><div class="lab">Doing</div><div class="txt">${esc(l.today)}</div></div>`:''}
+   ${l.blockers?`<div class="blocker"><div class="lab" style="color:inherit">Blockers</div><div class="txt">${esc(l.blockers)}</div></div>`:''}</div></section>`;
+}
+
+/* ---------- manager views ---------- */
+function vToday(){
+  const ids=devIds();if(!ids.length)return noDevs();
+  const isToday=S.day===todayStr();
+  const cards=ids.map(u=>{
+    const d=S.devs[u],log=d.logs.find(l=>l.date===S.day);
+    const open=d.tasks.filter(t=>t.status!=='done');
+    const active=open.filter(t=>t.status==='doing'||t.status==='review');
+    const late=open.filter(isOverdue);
+    const finished=d.tasks.filter(t=>doneOn(t,S.day));
+    return `<section class="panel stack">
+      <div class="row between"><h2>${dotFor(u)} ${esc(label(u))}</h2>
+        ${log?`<span class="chip ok">Posted ${esc(fmtTime(log.updatedAt))}${log.hours?' · '+esc(log.hours)+' h':''}</span>`:`<span class="chip ${isToday?'late':''}">${isToday?'No update yet':'No update'}</span>`}</div>
+      ${log?`${log.done?`<div><div class="lab">Done</div><div class="txt">${esc(log.done)}</div></div>`:''}
+        ${log.today?`<div><div class="lab">Doing</div><div class="txt">${esc(log.today)}</div></div>`:''}
+        ${log.blockers?`<div class="blocker"><div class="lab" style="color:inherit">Blockers</div><div class="txt">${esc(log.blockers)}</div></div>`:''}`
+        :`<div class="muted">${isToday?'Waiting for today\'s update.':'Nothing was posted for this day.'}</div>`}
+      <div><div class="lab">In progress now (${active.length})</div>${active.length?active.map(t=>`<div class="row" style="margin-top:4px"><span class="chip" style="background:none;padding:0;color:var(--${t.status})">●</span><button class="title" style="background:none;border:0;padding:0;text-align:left;font-weight:500" data-act="edit" data-uid="${esc(u)}" data-tid="${esc(t.id)}">${esc(t.title)}</button>${t.due?`<span class="chip ${isOverdue(t)?'late':''}">${esc(fmtDay(t.due))}</span>`:''}</div>`).join(''):'<div class="muted">Nothing in progress</div>'}</div>
+      <div class="meta"><span class="chip">${open.length} open</span><span class="chip ${late.length?'late':''}">${late.length} overdue</span><span class="chip ${finished.length?'ok':''}">${finished.length} finished ${isToday?'today':'that day'}</span></div>
+      <div class="row"><button class="btn sm ghost" data-act="new" data-uid="${esc(u)}">Assign task</button></div>
+    </section>`}).join('');
+  const rename=`<section class="panel"><h3 style="margin-bottom:8px">Display names</h3><p class="sub" style="margin:0 0 10px">Names come from each person's account. Set a short name here if you prefer.</p>
+    <div class="g2">${ids.map(u=>`<label>${dotFor(u)} ${esc(S.emails[u]||'')}<input data-act="rename" data-uid="${esc(u)}" id="nm-${esc(u)}" value="${esc(S.labels[u]||'')}" placeholder="Short name"></label>`).join('')}</div></section>`;
+  return `<div class="row" style="margin-bottom:14px"><label style="min-width:170px">Day<input type="date" id="dayPick" data-act="day" value="${esc(S.day)}" max="${todayStr()}"></label>
+    ${isToday?'':`<button class="btn ghost sm" data-act="daytoday">Back to today</button>`}</div>
+   <div class="cards">${cards}</div><div style="margin-top:16px">${rename}</div>`;
+}
+function vBoard(){
+  if(!devIds().length)return noDevs();
+  const items=visibleIds().flatMap(u=>(S.devs[u]?.tasks||[]).map(t=>({...t,uid:u})));
+  return `<div class="row between" style="margin-bottom:14px">${devFilter()}<button class="btn" data-act="new" data-uid="${esc(visibleIds()[0]||'')}" data-pick="1">Add task</button></div>${boardHtml(items,true)}`;
+}
+function vTimeline(){
+  if(!devIds().length)return noDevs();
+  const ev=[];
+  visibleIds().forEach(u=>{const d=S.devs[u];if(!d)return;
+    d.logs.forEach(l=>ev.push({at:l.updatedAt,u,html:`posted a daily update${l.blockers?' <span class="chip high">blocker</span>':''}<div class="muted txt" style="font-size:13px">${esc((l.today||l.done||'').slice(0,220))}</div>`}));
+    d.tasks.forEach(t=>(t.history||[]).forEach(h=>ev.push({at:h.at,u,html:h.created?`added task <b>${esc(t.title)}</b>`:`moved <b>${esc(t.title)}</b> to <span class="chip" style="color:var(--${h.s})">${esc(STAT_LABEL[h.s])}</span>`})));
+  });
+  ev.sort((a,b)=>b.at-a.at);
+  const cut=Date.now()-21*864e5;const list=ev.filter(e=>e.at>cut).slice(0,200);
+  let html='',last='';
+  list.forEach(e=>{const day=ymd(new Date(e.at));if(day!==last){html+=`<div class="day">${esc(fmtDay(day))}</div>`;last=day}
+    html+=`<div class="ev"><time>${esc(fmtTime(e.at))}</time><div>${dotFor(e.u)} <b>${esc(label(e.u))}</b> ${e.html}</div></div>`});
+  return `<div class="row" style="margin-bottom:6px">${devFilter()}<span class="sub">Last 3 weeks</span></div>
+    <section class="panel">${html?`<div class="tl">${html}</div>`:'<div class="empty">No activity yet. Updates and task changes show up here as they happen.</div>'}</section>`;
+}
+function weekData(u){
+  const d=S.devs[u]||{tasks:[],logs:[]};
+  const s=parseYmd(S.weekStart),e=new Date(s);e.setDate(e.getDate()+7);
+  const sm=s.getTime(),em=e.getTime();
+  const inW=ms=>ms&&ms>=sm&&ms<em;
+  const completed=d.tasks.filter(t=>inW(t.doneAt));
+  const started=d.tasks.filter(t=>(t.history||[]).some(h=>h.s==='doing'&&inW(h.at)));
+  const carried=d.tasks.filter(t=>t.status!=='done'&&(t.createdAt||0)<em);
+  const logs=d.logs.filter(l=>{const x=parseYmd(l.date).getTime();return x>=sm&&x<em});
+  const wd=[];for(let i=0;i<5;i++){const x=new Date(s);x.setDate(x.getDate()+i);if(ymd(x)<=todayStr())wd.push(ymd(x))}
+  const posted=wd.filter(x=>logs.some(l=>l.date===x));
+  return {completed,started,carried,logs,wd,posted,missing:wd.filter(x=>!posted.includes(x)),
+    blockers:logs.filter(l=>l.blockers),hours:logs.reduce((a,l)=>a+(Number(l.hours)||0),0),
+    est:completed.reduce((a,t)=>a+(Number(t.estimate)||0),0),overdue:carried.filter(isOverdue)};
+}
+function weekText(){
+  const s=parseYmd(S.weekStart),e=new Date(s);e.setDate(e.getDate()+6);
+  let o=`Weekly summary, ${fmtDay(S.weekStart)} to ${fmtDay(ymd(e))}\n`;
+  devIds().forEach(u=>{const w=weekData(u);
+    o+=`\n${label(u)}\n- Completed ${w.completed.length}: ${w.completed.map(t=>t.title).join('; ')||'none'}\n- Started ${w.started.length}, carried over ${w.carried.length}, overdue ${w.overdue.length}\n- Updates posted ${w.posted.length} of ${w.wd.length} working days${w.missing.length?' (missed '+w.missing.map(fmtDay).join(', ')+')':''}\n- Hours logged ${w.hours}\n`;
+    if(w.blockers.length)o+=`- Blockers: ${w.blockers.map(l=>fmtDay(l.date)+' '+l.blockers).join(' | ')}\n`});
+  return o;
+}
+function vWeek(){
+  const ids=devIds();if(!ids.length)return noDevs();
+  const s=parseYmd(S.weekStart),e=new Date(s);e.setDate(e.getDate()+6);
+  const cur=S.weekStart===ymd(mondayOf(new Date()));
+  const rows=ids.map(u=>({u,w:weekData(u)}));
+  return `<div class="row between" style="margin-bottom:14px">
+    <div class="row"><button class="btn ghost sm" data-act="week" data-d="-1">‹ Previous</button><b>${esc(fmtDay(S.weekStart))} to ${esc(fmtDay(ymd(e)))}</b><button class="btn ghost sm" data-act="week" data-d="1"${cur?' disabled':''}>Next ›</button></div>
+    <button class="btn sm" data-act="copyweek">Copy summary</button></div>
+   <section class="panel scroll"><table class="tbl"><thead><tr><th>Developer</th><th>Completed</th><th>Started</th><th>Carried over</th><th>Overdue</th><th>Updates posted</th><th>Blockers</th><th>Hours logged</th><th>Est. hours done</th></tr></thead><tbody>
+   ${rows.map(({u,w})=>`<tr><td>${dotFor(u)} <b>${esc(label(u))}</b></td><td>${w.completed.length}</td><td>${w.started.length}</td><td>${w.carried.length}</td><td style="${w.overdue.length?'color:var(--bad);font-weight:600':''}">${w.overdue.length}</td><td>${w.posted.length} / ${w.wd.length}</td><td>${w.blockers.length}</td><td>${w.hours||'–'}</td><td>${w.est||'–'}</td></tr>`).join('')}</tbody></table></section>
+   <div class="cards" style="margin-top:16px">${rows.map(({u,w})=>`<section class="panel stack"><h3>${dotFor(u)} ${esc(label(u))}</h3>
+     <div><div class="lab">Completed this week</div>${w.completed.length?w.completed.map(t=>`<div>✓ ${esc(t.title)} <span class="muted">· ${esc(fmtDay(ymd(new Date(t.doneAt))))}</span></div>`).join(''):'<div class="muted">Nothing completed</div>'}</div>
+     ${w.missing.length?`<div><div class="lab">Days without an update</div><div>${w.missing.map(x=>`<span class="chip late">${esc(fmtDay(x))}</span>`).join(' ')}</div></div>`:''}
+     ${w.blockers.length?`<div><div class="lab">Blockers raised</div>${w.blockers.map(l=>`<div class="blocker" style="margin-top:4px"><b>${esc(fmtDay(l.date))}</b> <span class="txt">${esc(l.blockers)}</span></div>`).join('')}</div>`:''}
+     </section>`).join('')}</div>`;
+}
+
+/* ---------- task dialog ---------- */
+function openTask(uid,tid,pick){
+  const prev=tid?S.devs[uid]?.tasks.find(t=>t.id===tid):null;
+  S.modal={uid,tid:prev?prev.id:null,pick:!!pick&&!prev,del:false};
+  const t=prev||{title:'',notes:'',priority:'med',estimate:'',due:'',status:'todo'};
+  const ids=devIds();
+  modalEl.innerHTML=`<div class="ov" data-act="ovclick"><form class="box" id="taskForm" role="dialog" aria-modal="true" aria-label="Task">
+   <h2>${prev?'Edit task':'New task'}</h2>
+   <label for="t-title">Title<input id="t-title" required maxlength="200" value="${esc(t.title)}"></label>
+   <label for="t-notes">Notes<textarea id="t-notes">${esc(t.notes||'')}</textarea></label>
+   <div class="g2">
+    <label for="t-pri">Priority<select id="t-pri">${Object.entries(PRI).map(([k,v])=>`<option value="${k}"${t.priority===k?' selected':''}>${v}</option>`).join('')}</select></label>
+    <label for="t-status">Status<select id="t-status">${STAT.map(([k,v])=>`<option value="${k}"${t.status===k?' selected':''}>${v}</option>`).join('')}</select></label>
+    <label for="t-est">Estimate (hours)<input id="t-est" type="number" min="0" step="0.5" value="${esc(t.estimate||'')}"></label>
+    <label for="t-due">Due date<input id="t-due" type="date" value="${esc(t.due||'')}"></label>
+   </div>
+   ${S.mgr&&!prev?`<label for="t-who">Assign to<select id="t-who">${ids.map(u=>`<option value="${esc(u)}"${u===uid?' selected':''}>${esc(label(u))}</option>`).join('')}</select></label>`:''}
+   ${prev&&prev.history?`<div class="sub">${prev.history.map(h=>esc(h.created?'Added':STAT_LABEL[h.s])+' '+esc(new Date(h.at).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))).join(' → ')}</div>`:''}
+   <div class="row between"><div class="row"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" data-act="closemodal">Cancel</button></div>
+   ${prev?`<button class="btn ghost" type="button" id="delBtn" data-act="del">Delete</button>`:''}</div>
+  </form></div>`;
+  setTimeout(()=>$('#t-title')?.focus(),30);
+}
+function closeModal(){S.modal=null;modalEl.innerHTML='';if(S.pending)scheduleRender()}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const a=el.dataset.act;
+  if(a==='ovclick'){if(e.target===el)closeModal();return}
+  if(a==='tab'){S.tab=el.dataset.k;render()}
+  else if(a==='google')doGoogle();
+  else if(a==='sendlink')doSendLink();
+  else if(a==='signout')doSignOut();
+  else if(a==='demo')enterDemo();
+  else if(a==='exitdemo')exitDemo();
+  else if(a==='demorole')setDemoRole(el.dataset.r);
+  else if(a==='edit')openTask(el.dataset.uid,el.dataset.tid);
+  else if(a==='new'){if(!el.dataset.uid&&!devIds().length){toast('No developers have joined yet');return}openTask(el.dataset.uid||devIds()[0],null,el.dataset.pick)}
+  else if(a==='closemodal')closeModal();
+  else if(a==='daytoday'){S.day=todayStr();render()}
+  else if(a==='week'){const d=parseYmd(S.weekStart);d.setDate(d.getDate()+7*Number(el.dataset.d));S.weekStart=ymd(d);render()}
+  else if(a==='copyweek')copyText(weekText());
+  else if(a==='del'){
+    if(!S.modal.del){S.modal.del=true;el.textContent='Click again to confirm delete';el.className='btn danger';return}
+    deleteTask(S.modal.uid,S.modal.tid);closeModal();toast('Task deleted');
+  }
+});
+document.addEventListener('change',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act;
+  if(a==='status'){setStatus(el.dataset.uid,el.dataset.tid,el.value);document.activeElement.blur();render()}
+  else if(a==='filter'){S.filter=el.value;render()}
+  else if(a==='day'){if(el.value){S.day=el.value;render()}}
+  else if(a==='rename'){const u=el.dataset.uid,v=el.value.trim();if(!v)return;
+    S.labels={...S.labels,[u]:v};
+    if(!S.demo){REALLAB=S.labels;persist(sb.from('profiles').update({name:v}).eq('id',u))}
+    render()}
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  if(e.target.id==='logForm'){
+    const t=todayStr(),old=myData().logs.find(l=>l.date===t),now=Date.now();
+    const h=$('#f-hours').value;
+    const data={date:t,done:$('#f-done').value.trim(),today:$('#f-today').value.trim(),blockers:$('#f-block').value.trim(),
+      hours:h===''?null:Number(h),createdAt:old?.createdAt||now,updatedAt:now};
+    if(!data.done&&!data.today&&!data.blockers){toast('Write at least one line before posting');return}
+    const dv=S.devs[S.myId];dv.logs=[...dv.logs.filter(l=>l.date!==t),data].sort((a,b)=>b.date.localeCompare(a.date));
+    toast(S.demo?'Update saved (sample only)':'Update saved');render();
+    if(!S.demo)persist(sb.from('daily_logs').upsert({owner:S.myId,log_date:t,done_text:data.done,plan_text:data.today,blockers_text:data.blockers,hours:data.hours,created_at:iso(data.createdAt),updated_at:iso(data.updatedAt)},{onConflict:'owner,log_date'}));
+    document.activeElement.blur();
+  }else if(e.target.id==='taskForm'){
+    const m=S.modal;if(!m)return;
+    const title=$('#t-title').value.trim();if(!title)return;
+    const prev=m.tid?S.devs[m.uid].tasks.find(t=>t.id===m.tid):null;
+    const uid=(!prev&&$('#t-who'))?$('#t-who').value:m.uid;
+    const est=$('#t-est').value;
+    const t={id:prev?prev.id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():uid8()+uid8()),title,notes:$('#t-notes').value.trim(),priority:$('#t-pri').value,
+      estimate:est===''?0:Number(est),due:$('#t-due').value,status:$('#t-status').value};
+    saveTask(uid,t,prev);closeModal();toast(prev?'Task updated':'Task added');
+  }
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.modal)closeModal()});
+function copyText(txt){
+  const fallback=()=>{modalEl.innerHTML=`<div class="ov" data-act="ovclick"><div class="box"><h2>Copy this summary</h2><textarea id="cp" style="min-height:260px">${esc(txt)}</textarea><button class="btn" data-act="closemodal">Close</button></div></div>`;S.modal={};setTimeout(()=>{const c=$('#cp');c&&c.select()},30)};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>toast('Summary copied'),fallback);else fallback();
+}
+
+/* ---------- sample mode (local only, never saved) ---------- */
+function demoBanner(){
+  if(!S.demo)return '';
+  const b=(r,t)=>`<button class="btn sm ${S.demoRole===r?'':'ghost'}" data-act="demorole" data-r="${r}">${t}</button>`;
+  return `<div class="note" style="margin-bottom:12px"><div class="row between"><div><b>Sample data.</b> Nothing here is real and nothing is saved. Try it: change a task status, add a task, post an update.</div>
+   <div class="row">${b('mgr','Manager view')}${b('demo-arsh','As Arsh')}${b('demo-madhav','As Madhav')}<button class="btn sm ghost" data-act="exitdemo">Exit sample</button></div></div></div>`;
+}
+function buildDemo(){
+  const H=36e5,now=Date.now();
+  const dAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d};
+  const at=(n,h,m)=>{const d=dAgo(n);d.setHours(h,m||0,0,0);return d.getTime()};
+  const off=n=>ymd(dAgo(-n));
+  const pw=[];for(let n=1;pw.length<4;n++){const g=dAgo(n).getDay();if(g!==0&&g!==6)pw.push(n)}
+  const T=(title,notes,priority,estimate,due,status,hist)=>({id:uid8()+uid8(),title,notes,priority,estimate,due,status,createdAt:hist[0].at,createdBy:'demo',updatedAt:hist[hist.length-1].at,doneAt:status==='done'?hist[hist.length-1].at:null,history:hist});
+  const c=a=>({s:'todo',at:a,created:true}),h=(s,a)=>({s,at:a});
+  const L=(n,done,today,blockers,hours)=>({date:ymd(dAgo(n)),done,today,blockers,hours,createdAt:at(n,17),updatedAt:at(n,17,20)});
+  const arsh={tasks:[
+    T('Login screen API integration','Connect the login form to the auth endpoints.','high',6,off(1),'doing',[c(at(pw[3],10)),h('doing',at(pw[2],9,30))]),
+    T('Fix payment webhook retries','Retries fire twice on timeout.','high',4,off(0),'review',[c(at(pw[2],11)),h('doing',at(pw[2],14)),h('review',at(pw[0],17))]),
+    T('Set up CI pipeline','Run tests and lint on every pull request.','med',5,off(-2),'done',[c(at(pw[3],10)),h('doing',at(pw[3],11)),h('done',at(pw[1],16))]),
+    T('Write onboarding emails','Three-email welcome series.','low',3,off(-1),'todo',[c(at(pw[2],12))]),
+    T('Refactor notification service','','med',8,off(5),'todo',[c(at(pw[1],10))])],
+   logs:[
+    L(pw[3],'Project setup and repository access.','Start the CI pipeline.','',7),
+    L(pw[2],'CI pipeline configuration drafted.','Begin login API integration.','Need staging API keys from the backend team.',7.5),
+    L(pw[1],'CI pipeline is live. Started on the login API.','Fix the webhook retry bug.','',8),
+    L(pw[0],'Webhook fix is ready for review.','Continue the login screen.','',7),
+    {date:todayStr(),done:'Review feedback on the webhook fix is addressed.',today:'Login screen API integration, then onboarding emails.',blockers:'',hours:null,createdAt:now-2*H,updatedAt:now-2*H}]};
+  const madhav={tasks:[
+    T('Dashboard charts','Weekly sales and signups charts.','med',6,off(2),'doing',[c(at(pw[1],10)),h('doing',at(pw[0],10))]),
+    T('Migrate users table','Add the new profile columns with a safe backfill.','high',5,off(-2),'done',[c(at(pw[3],10)),h('doing',at(pw[3],12)),h('done',at(pw[2],15))]),
+    T('Cart total rounding bug','Totals are off by 1 paisa on some discounts.','high',2,off(0),'todo',[c(at(pw[0],16))]),
+    T('API documentation','','low',4,off(7),'todo',[c(at(pw[2],10))]),
+    T('Search filter performance','Filters are slow above 10k rows.','med',5,off(1),'review',[c(at(pw[2],10)),h('doing',at(pw[1],10)),h('review',at(pw[0],16))])],
+   logs:[
+    L(pw[3],'Reviewed the schema change plan.','Migrate the users table.','',6.5),
+    L(pw[2],'Users table migration finished and tested.','Start the dashboard charts.','',7),
+    L(pw[0],'Search filter work is ready for review. Chart skeleton done.','Dashboard charts.','Waiting on design for chart colours.',7.5)]};
+  return {devs:{'demo-arsh':arsh,'demo-madhav':madhav},labels:{'demo-arsh':'Arsh','demo-madhav':'Madhav'}};
+}
+function enterDemo(){
+  if(S.demo)return;
+  const D=buildDemo();
+  S.real={mgr:S.mgr,myId:S.myId};S.demo=true;S.demoRole='mgr';
+  S.devs=D.devs;S.labels=D.labels;S.mgr=true;S.tab=null;S.filter='all';
+  S.colors['demo-arsh']='#2563c9';S.colors['demo-madhav']='#c26a0a';
+  render();
+}
+function exitDemo(){
+  if(!S.demo)return;
+  S.demo=false;S.devs=REAL;S.labels=REALLAB;S.mgr=S.real.mgr;S.myId=S.real.myId;S.tab=null;S.filter='all';S.modal=null;modalEl.innerHTML='';
+  render();
+}
+function setDemoRole(r){
+  S.demoRole=r;S.tab=null;S.filter='all';
+  if(r==='mgr'){S.mgr=true;S.myId=S.real.myId}else{S.mgr=false;S.myId=r}
+  render();
+}
+
+/* ---------- sign in and boot ---------- */
+function loginHtml(msg){
+  return `<section class="panel stack" style="max-width:420px;margin:40px auto">
+   <div><h1>Dev Daily Tracker</h1><p class="sub" style="margin:6px 0 0">Sign in with the email address you were invited with.</p></div>
+   <button class="btn" data-act="google">Continue with Google</button>
+   <div class="sub">Or get a sign-in link by email</div>
+   <label for="lg-email">Email<input id="lg-email" type="email" autocomplete="email" placeholder="you@gmail.com"></label>
+   <button class="btn ghost" data-act="sendlink">Email me a sign-in link</button>
+   <div id="lg-msg" class="sub" role="status">${esc(msg||'')}</div></section>`;
+}
+const redirectUrl=()=>location.origin+location.pathname;
+async function doGoogle(){
+  const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:redirectUrl()}});
+  if(error)$('#lg-msg').textContent='Google sign-in is not set up yet. Use the email link instead. ('+error.message+')';
+}
+async function doSendLink(){
+  const email=($('#lg-email').value||'').trim();
+  if(!email){$('#lg-msg').textContent='Enter your email first.';return}
+  $('#lg-msg').textContent='Sending…';
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:redirectUrl()}});
+  $('#lg-msg').textContent=error?('Could not send the link: '+error.message):'Check your inbox for the sign-in link, then open it in this browser.';
+}
+async function doSignOut(){try{await sb.auth.signOut()}catch(e){}location.reload()}
+
+async function init(){
+  if(!CFG.SUPABASE_URL||!CFG.SUPABASE_ANON_KEY||!window.supabase){
+    S.gate={title:'Setup not finished',body:'Add your Supabase project URL and anon key to config.js. See SETUP.md.'};render();return}
+  sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY);
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){S.gate={html:loginHtml()};render();return}
+  const {data:prof,error}=await sb.rpc('claim_profile');
+  if(error){S.gate={title:'Could not load your account',body:error.message+' Check that schema.sql was run in Supabase.',html:null};render();return}
+  if(!prof||!prof.id){
+    S.gate={html:`<section class="panel stack" style="max-width:460px;margin:40px auto"><h2>This email is not on the invite list</h2>
+      <p class="sub" style="margin:0">You are signed in as ${esc(session.user.email||'')}. Ask Sachin to add this address, then sign in again.</p>
+      <div><button class="btn ghost" data-act="signout">Sign out</button></div></section>`};
+    render();return}
+  S.me={name:prof.name,email:prof.email,id:prof.id};S.myId=prof.id;S.mgr=prof.role==='manager';S.isOwner=S.mgr;S.gate='';
+  await loadAll();render();
+  setInterval(()=>{if(!document.hidden&&!S.modal&&!S.demo)loadAll()},S.mgr?45000:120000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!S.demo)loadAll()});
+}
+render();init();
+</script>
+</body></html>
